@@ -1,4 +1,3 @@
-// تغییر نام متغیرهای کلیدی و مبهم‌سازی رفتاری
 const TARGET_NODE = (Netlify.env.get("API_REMOTE_SERVER") || "").replace(/\/$/, "");
 
 const STRIP_HEADERS = new Set([
@@ -16,31 +15,37 @@ const STRIP_HEADERS = new Set([
   "x-forwarded-proto",
   "x-forwarded-port",
   "x-nf-client-connection-ip",
-  "x-client-ip"
+  "x-client-ip",
+  "x-netlify-id",
+  "via"
 ]);
 
 export default async function handler(req) {
   if (!TARGET_NODE) {
-    return new Response("Asset synchronization pending.", { status: 404 });
+    return new Response("Asset synchronization pending. Core modules loading...", { 
+      status: 200, 
+      headers: { "Content-Type": "text/plain" } 
+    });
   }
 
   try {
     const urlContext = new URL(req.url);
     const path = urlContext.pathname;
 
-    // ۱. شبیه‌سازی رفتار عادی برای درخواست‌های استاندارد وب (مانند favicon یا روبات‌ها)
-    if (path === "/favicon.ico" || path === "/robots.txt") {
-      return new Response("", { status: 404 });
+    if (path === "/favicon.ico" || path === "/robots.txt" || path === "/") {
+      return new Response("/* Academic Asset Cache */", { 
+        status: 200, 
+        headers: { "Content-Type": "application/javascript" } 
+      });
     }
 
     const destination = TARGET_NODE + path + urlContext.search;
     const outboundHeaders = new Headers();
-    let clientIpSource = null;
+    let clientIpSource = "1.1.1.1";
 
     for (const [key, value] of req.headers) {
       const lowerKey = key.toLowerCase();
       
-      // حذف هدرهای حساس و هدرهای اختصاصی نتلایف که الگو ایجاد می‌کنند
       if (STRIP_HEADERS.has(lowerKey) || lowerKey.startsWith("x-nf-") || lowerKey.startsWith("x-netlify-")) {
         continue;
       }
@@ -53,38 +58,55 @@ export default async function handler(req) {
       outboundHeaders.set(lowerKey, value);
     }
 
-    // بازسازی هدر آی‌پی به فرمت استاندارد غیراختصاصی
-    if (clientIpSource) {
-      outboundHeaders.set("forwarded", `for=${clientIpSource}`);
-    }
+    outboundHeaders.set("X-Forwarded-For", clientIpSource);
+    outboundHeaders.set("CF-Connecting-IP", clientIpSource);
 
-    // تغییر هدر User-Agent به یک مرورگر استاندارد در صورت عدم وجود، برای عادی‌سازی ترافیک
-    if (!outboundHeaders.has("user-agent")) {
-      outboundHeaders.set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-    }
+    outboundHeaders.set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+    outboundHeaders.set("accept", "application/json, text/plain, */*");
+    outboundHeaders.set("accept-language", "en-US,en;q=0.9");
+    outboundHeaders.set("sec-ch-ua", '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"');
+    outboundHeaders.set("sec-ch-ua-mobile", "?0");
+    outboundHeaders.set("sec-ch-ua-platform", '"Windows"');
+    outboundHeaders.set("sec-fetch-dest", "empty");
+    outboundHeaders.set("sec-fetch-mode", "cors");
+    outboundHeaders.set("sec-fetch-site", "same-origin");
 
     const method = req.method;
     const fetchOptions = {
       method: method,
       headers: outboundHeaders,
-      redirect: "manual",
+      redirect: "manual"
     };
 
     if (method !== "GET" && method !== "HEAD") {
       fetchOptions.body = req.body;
     }
 
-    const originResponse = await fetch(destination, fetchOptions);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    fetchOptions.signal = controller.signal;
 
-    // پاک‌سازی هدرهای پاسخ سرور مقصد قبل از تحویل به کلاینت
+    const originResponse = await fetch(destination, fetchOptions);
+    clearTimeout(timeoutId);
+
     const cleanResponseHeaders = new Headers();
     for (const [key, value] of originResponse.headers) {
       const lowerKey = key.toLowerCase();
-      if (lowerKey === "transfer-encoding" || lowerKey === "server" || lowerKey.startsWith("x-powered-")) {
+      
+      if (
+        lowerKey === "transfer-encoding" || 
+        lowerKey === "server" || 
+        lowerKey === "connection" ||
+        lowerKey.startsWith("x-powered-") ||
+        lowerKey.startsWith("x-vless")
+      ) {
         continue;
       }
       cleanResponseHeaders.set(key, value);
     }
+
+    cleanResponseHeaders.set("Cache-Control", "public, max-age=31536000, immutable");
+    cleanResponseHeaders.set("X-Content-Type-Options", "nosniff");
 
     return new Response(originResponse.body, {
       status: originResponse.status,
@@ -92,7 +114,9 @@ export default async function handler(req) {
     });
 
   } catch (err) {
-    // بازگرداندن وضعیت معمولی به جای خطای تند پراکسی
-    return new Response("Resource temporarily unavailable", { status: 503 });
+    return new Response("/* Asset chunk resolved locally */", { 
+      status: 200, 
+      headers: { "Content-Type": "application/javascript" } 
+    });
   }
 }
