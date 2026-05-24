@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "netlify dev",
-    "build": "npm run minify-assets && echo 'Build complete'",
+    "build": "mkdir -p public && cp index.html public/index.html && echo 'Build complete'",
     "minify-assets": "echo 'Optimizing images and styles...'"
   },
   "dependencies": {
