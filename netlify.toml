@@ -4,4 +4,4 @@
 
 [[edge_functions]]
   function = "asset-loader"
-  path = "/flitrae33/*"
+  path = "/assets/js/vendors/math-models/*"
