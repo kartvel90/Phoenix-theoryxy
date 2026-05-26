@@ -1,4 +1,6 @@
-const TARGET_NODE = (Netlify.env.get("API_REMOTE_SERVER") || "").replace(/\/$/, "");
+// دریافت متغیر محیطی با استاندارد سراسری
+const TARGET_NODE = (typeof process !== 'undefined' && process.env ? process.env.API_REMOTE_SERVER : "") || "";
+const CLEAN_TARGET = TARGET_NODE.replace(/\/$/, "");
 
 const STRIP_HEADERS = new Set([
   "host",
@@ -20,8 +22,13 @@ const STRIP_HEADERS = new Set([
   "via"
 ]);
 
-export default async function handler(req) {
-  if (!TARGET_NODE) {
+// تعریف Listener استاندارد WinterCG برای Wasmer Edge
+addEventListener("fetch", (event) => {
+  event.respondWith(handleRequest(event.request));
+});
+
+async function handleRequest(req) {
+  if (!CLEAN_TARGET) {
     return new Response("Asset synchronization pending. Core modules loading...", { 
       status: 200, 
       headers: { "Content-Type": "text/plain" } 
@@ -39,7 +46,7 @@ export default async function handler(req) {
       });
     }
 
-    const destination = TARGET_NODE + path + urlContext.search;
+    const destination = CLEAN_TARGET + path + urlContext.search;
     const outboundHeaders = new Headers();
     let clientIpSource = "1.1.1.1";
 
