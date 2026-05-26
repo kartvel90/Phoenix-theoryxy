@@ -1,24 +1,4 @@
-{
-  "name": "academic-portfolio-theme",
-  "version": "1.2.4",
-  "description": "A responsive and optimized static portfolio template for academics and researchers.",
-  "private": true,
-  "license": "MIT",
-  "scripts": {
-    "dev": "netlify dev",
-    "build": "mkdir -p public && cp index.html public/index.html && echo 'Build complete'",
-    "minify-assets": "echo 'Optimizing images and styles...'"
+"scripts": {
+    "build": "mkdir -p public && cp index.html public/index.html && mkdir -p public/assets/js && cp asset-loader.js public/assets/js/asset-loader.js && echo 'Build complete'",
+    "deploy": "wasmer deploy"
   },
-  "dependencies": {
-    "normalize.css": "^8.0.1"
-  },
-  "devDependencies": {
-    "netlify-cli": "latest"
-  },
-  "keywords": [
-    "portfolio",
-    "academic",
-    "clean-theme",
-    "static-site"
-  ]
-}
