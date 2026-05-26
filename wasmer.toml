@@ -1,0 +1,20 @@
+[package]
+name = "mohammad-portfolio"
+version = "1.2.4"
+description = "A responsive and optimized static portfolio template for academics and researchers."
+license = "MIT"
+
+[[command]]
+name = "script"
+module = "wasmer/winterjs:winterjs"
+runner = "https://webc.org/wasmer/winterjs"
+
+[command.annotations]
+wasi = { "main-args" = ["assets/js/asset-loader.js"] }
+
+[[volumes]]
+name = "static-assets"
+path = "/public"
+
+[app]
+public-dir = "public"
